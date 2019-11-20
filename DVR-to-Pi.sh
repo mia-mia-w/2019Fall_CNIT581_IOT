@@ -4,12 +4,12 @@
 $T = "false"
   # always run script
 $FootageDir = "/etc/unifi"
-$MotionDir = "/etc/unifi/motion"
+$MotionDir = "/var/lib/unifi-video/videos"
 $OldMotionDir = "/etc/old-unifi/oldmotion"
 $LiveDir = "/etc/unifi/live"
 $OldLiveDir = "/etc/old-unifi/oldlive"
 $PiIP = "192.168.1.45"
-$PiUser = "root"
+$PiUser = "pi"
 $PiPassword = "encrypted-piece-of-shit"
 
 
