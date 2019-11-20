@@ -4,7 +4,7 @@
 $T = "false"
   # always run script
 $FootageDir = "/etc/unifi"
-$MotionDir = "/var/lib/unifi-video/videos"
+$MotionDir = "/var/lib/unifi-video/videos/dc200454-4f0a-301e-ac57-6bac105b9846"
 $OldMotionDir = "/etc/old-unifi/oldmotion"
 $LiveDir = "/etc/unifi/live"
 $OldLiveDir = "/etc/old-unifi/oldlive"
