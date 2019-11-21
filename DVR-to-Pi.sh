@@ -25,7 +25,7 @@ While ( $T = "true" ); Do
 	$Month = date +%m
 	$Day = date +%d
 	$VideoDir = "$CameraDir/$Year/$Month/$Day"
-	inotifywait -t 20 $VideoDir -e create | While read path action file; Do
+	While (inotifywait -t 20 -e create $VideoDir); Do
 	  # test forever for any newly created files in $FootageDir recursively and perform an action after
 	  $Date = date
 	  Touch "./$Date-motion-notification.txt"
@@ -40,4 +40,5 @@ While ( $T = "true" ); Do
 	  CheckWhenDone()
 	  Ftp -4 -i user $PiUser $PiPassword put $file $PiIP:/motion/
 	  mv $File $OldMotionDir
+	Done
 Done
