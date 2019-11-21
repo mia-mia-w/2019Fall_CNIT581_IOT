@@ -25,7 +25,7 @@ While ( $T = "true" ); Do
 	$Month = date +%m
 	$Day = date +%d
 	$VideoDir = "$CameraDir/$Year/$Month/$Day"
-	inotifywait -m $VideoDir -e create | While read path action file; Do
+	inotifywait -t 20 $VideoDir -e create | While read path action file; Do
 	  # test forever for any newly created files in $FootageDir recursively and perform an action after
 	  $Date = date
 	  Touch "./$Date-motion-notification.txt"
