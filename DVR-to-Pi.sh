@@ -28,32 +28,35 @@ FTPToPi() {
 MotionCheck() {
 	inotifywait -e created -t 20 "$1/meta/*.json" | while read -r "NewJSON"; do # Checks recursively for 20 seconds if any file has been written and closed for any number of cameras
 		SendNotification
-		StartTime=$(grep 'startTime":(.*?)\,' "$1/meta/$NewJSON")
+		cd "$1" || exit
+		StartTime=$(grep 'startTime":(.*?)\,' "meta/$NewJSON")
+		while (grep 'inProgress":(.*?)\,' "meta/$NewJSON" -eq 'true'); do
+			Videos=$(grep -v "_FTPed\.mp4")
+			for Video in $Videos; do
+				if [[ $(cut -f1 -d '_' "$Video") -ge "$StartTime" ]]; then
+					FTPToPi "$Video"
+				fi
+			done
+		done
+		EndTime=$(grep 'endTime":(.*?)\,' "meta/$NewJSON")
 		Videos=$(grep -v "_FTPed\.mp4")
 		for Video in $Videos; do
-			FirstField=$(cut -f1 -d '_' "$Video")
-			if (grep 'endTime":(.*?)\,' "$1/meta/$NewJSON" -eq 'null'); then
-				if [ "$FirstField" -ge "$StartTime" ]; then
-					FTPToPi "$Video"
-				fi
-			else
-				EndTime=$(grep 'endTime":(.*?)\,' "$1/meta/$NewJSON")
-				if [ "$FirstField" -ge "$StartTime" ] && [ "$FirstField" -le "$EndTime" ]; then
-					FTPToPi "$Video"
-				fi
+			if [[ $(cut -f1 -d '_' "$Video") -ge "$StartTime" ]] && [[ $(cut -f1 -d '_' "$Video") -le "$EndTime" ]]; then
+				FTPToPi "$Video"
 			fi
 		done
 	done
 }
 SendNotification() {
 	Date=$(date +%m-%d-%Y-%H:%M) # Get date in a nice format (ex.11-20-2020-17:14)
-	Touch "~/$Date.txt" # Create notification message to alert the farmer rather than wait for the large video file to transfer (ex.11-20-2020-17:14.txt)
+	Touch "$Date.txt" # Create notification message to alert the farmer rather than wait for the large video file to transfer (ex.11-20-2020-17:14.txt)
 	Ftp -4 -i user "$EdgeFTPUser" "$EdgeFTPPassword" put "./$Date.txt" $EdgeServer:$EdgeNotificationsDir # FTP a notification of motion to the edge server to beginning notification of the farmer
 	rm "./$Date.txt" # Clean up the local notification
 }
 
 #----------------Main-----------------------------------
-while ($T -e "true"); do # Run forever
+cd "$UniFiDir" || exit
+while $T -e "true"; do # Run forever
 	Year=$(date +%Y) # Get year (ex. 2019)
 	Month=$(date +%m) # Get month (ex. 11)
 	Day=$(date +%d) # Get day (ex. 27)
