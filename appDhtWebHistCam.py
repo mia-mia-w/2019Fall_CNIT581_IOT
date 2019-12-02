@@ -2,9 +2,6 @@
 # -*- coding: utf-8 -*-
 #
 #  appDhtWebHistCam.py
-#  
-#  Created by MJRoBot.org 
-#  10Jan18
 
 '''
 	RPi WEb Server for DHT captured data with Gage and Graph plot and Streeming video 
