@@ -28,10 +28,12 @@ EdgeNotificationsDir="notifications"
 	# Directory on the edge server where notifications will be FTPed to
 EdgeMotionDir="motion"
 	# Directory on the edge server where motion videos will be FTPed to
+Date=""
+	# Establish a global Date variable
 #----------------Functions------------------------------
 FTPToPi() {
 	Ftp -4 "$EdgeServer"
-	cd "$EdgeMotionDir"
+	cd "$EdgeMotionDir/$Date"
 	put "$1"
 	exit
 		# FTP the motion video file to the edge server
@@ -42,15 +44,22 @@ FTPToPi() {
 }
 MotionCheck() {
 	inotifywait -e created -t 20 "$1/meta/*.json" | while read -r "NewJSON"; do
-			# Checks recursively for 20 seconds if any file has been creaed
+			# Checks recursively for 20 seconds if any file has been created
+		Date=$(date +%m-%d-%Y-%H:%M)
+				# Get date in a nice format (ex.11-20-2020-17:14)
 		SendNotification
 			# Since a new motion (JSON) was found, send a notification to edge server
 		cd "$1" || exit
 			# Just changing directories
 		StartTime=$(grep 'startTime":(.*?)\,' "meta/$NewJSON")
 			# Obtain motion's startTime from new JSON
+		Ftp -4 "$EdgeServer"
+		cd "$EdgeMotionDir"
+		mkdir "$Date"
+		exit
+			# Make a directory with the timestamp in the Pi's motion folder
 		while (grep 'inProgress":(.*?)\,' "meta/$NewJSON" -eq 'true'); do
-				# Detect if motion is still in progress according to the JSON
+			# Detect if motion is still in progress according to the JSON
 			Videos=$(grep -v "_FTPed\.mp4")
 				# Grab all videos that do not contain _FTPed.mp4
 			for Video in $Videos; do
@@ -75,12 +84,10 @@ MotionCheck() {
 	done
 }
 SendNotification() {
-	Date=$(date +%m-%d-%Y-%H:%M)
-		# Get date in a nice format (ex.11-20-2020-17:14)
 	Touch "$Date.txt"
 		# Create notification message to alert the farmer rather than wait for the large video file to transfer (ex.11-20-2020-17:14.txt)
 	Ftp -4 "$EdgeServer"
-	cd "$EdgeotificationsDir"
+	cd "$EdgeNotificationsDir"
 	put "./$Date.txt"
 	exit
 		# FTP a notification of motion to the edge server to beginning notification of the farmer
@@ -89,26 +96,29 @@ SendNotification() {
 }
 
 #----------------Main-----------------------------------
-cd "$UniFiDir" || exit
-	# Just changing directories
-while $T -e "true"; do
-		# Run forever
-	Year=$(date +%Y)
-		# Get year (ex. 2019)
-	Month=$(date +%m)
-		# Get month (ex. 11)
-	Day=$(date +%d)
-		# Get day (ex. 27)
-	Cameras=$(grep '^d' "$UniFiDir")
-		# Get each cameras' directory and assign it to $Cameras
-	ctr='0'
-	for Camera in $Cameras; do
-		CameraPath[$ctr]="$UniFiDir/$Camera/$Year/$Month/$Day"
-			# Add cameras' path to array $CameraPath
-		MotionCheck "${CameraPath[$ctr]}" &
-			# Check for motion (JSON files) at path and run in the background
-		$ctr++
+if [ -z "$(pgrep -f "DVR-to-Pi.sh")" ]; then
+	# Start script if not started
+	cd "$UniFiDir" || exit
+		# Just changing directories
+	while $T -e "true"; do
+			# Run forever
+		Year=$(date +%Y)
+			# Get year (ex. 2019)
+		Month=$(date +%m)
+			# Get month (ex. 11)
+		Day=$(date +%d)
+			# Get day (ex. 27)
+		Cameras=$(grep '^d' "$UniFiDir")
+			# Get each cameras' directory and assign it to $Cameras
+		ctr='0'
+		for Camera in $Cameras; do
+			CameraPath[$ctr]="$UniFiDir/$Camera/$Year/$Month/$Day"
+				# Add cameras' path to array $CameraPath
+			MotionCheck "${CameraPath[$ctr]}" &
+				# Check for motion (JSON files) at path and run in the background
+			$ctr++
+		done
+		Wait 21
+			# Wait for (inotifywait_time + 1) seconds to check for a new date
 	done
-	Wait 21
-		# Wait for (inotifywait_time + 1) seconds to check for a new date
-done
+fi
