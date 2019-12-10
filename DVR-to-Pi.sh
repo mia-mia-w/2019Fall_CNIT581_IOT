@@ -2,6 +2,9 @@
 
 #----------------Random----------------------------------
 # Good code validating website: https://www.shellcheck.net/
+# vi ~/.netrc
+#		machine 172.16.2.12 login Frank password <password>
+# chmod 600 ~/.netrc
 
 #----------------Installation-Steps----------------------
 # 1. sudo apt-get inotify-tools ftp -y
@@ -21,17 +24,16 @@ UniFiDir="/var/lib/unifi-video/videos"
 	# Where the videos are stored at
 EdgeServer="172.16.2.12"
 	# Edge server's IP address
-EdgeFTPUser="Frank"
-	# Edge server's user with FTP privileges
-EdgeFTPPassword="<password>"
-	# $EdgeFTPUser's password
 EdgeNotificationsDir="notifications"
 	# Directory on the edge server where notifications will be FTPed to
 EdgeMotionDir="motion"
 	# Directory on the edge server where motion videos will be FTPed to
 #----------------Functions------------------------------
 FTPToPi() {
-	Ftp -4 -i user "$EdgeFTPUser" "$EdgeFTPPassword" put "$1" $EdgeServer:$EdgeMotionDir
+	Ftp -4 "$EdgeServer"
+	cd "$EdgeMotionDir"
+	put "$1"
+	exit
 		# FTP the motion video file to the edge server
 	EditedName=$("${1//.mp4/_FTPed.mp4}")
 		# Add _FTPed.mp4 to the end of the FTPed motion video
@@ -77,7 +79,10 @@ SendNotification() {
 		# Get date in a nice format (ex.11-20-2020-17:14)
 	Touch "$Date.txt"
 		# Create notification message to alert the farmer rather than wait for the large video file to transfer (ex.11-20-2020-17:14.txt)
-	Ftp -4 -i user "$EdgeFTPUser" "$EdgeFTPPassword" put "./$Date.txt" $EdgeServer:$EdgeNotificationsDir
+	Ftp -4 "$EdgeServer"
+	cd "$EdgeotificationsDir"
+	put "./$Date.txt"
+	exit
 		# FTP a notification of motion to the edge server to beginning notification of the farmer
 	rm "./$Date.txt"
 		# Clean up the local notification
