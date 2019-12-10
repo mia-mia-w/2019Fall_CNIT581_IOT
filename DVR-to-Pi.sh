@@ -19,15 +19,15 @@ T="true"
 	# run forever
 UniFiDir="/var/lib/unifi-video/videos"
 	# Where the videos are stored at
-EdgeServer="192.168.1.45"
+EdgeServer="172.16.2.12"
 	# Edge server's IP address
-EdgeFTPUser="pi"
+EdgeFTPUser="Frank"
 	# Edge server's user with FTP privileges
-EdgeFTPPassword="<don't insert real password here ever on GitHub>"
+EdgeFTPPassword="<password>"
 	# $EdgeFTPUser's password
-EdgeNotificationsDir="/motion-notifications"
+EdgeNotificationsDir="notifications"
 	# Directory on the edge server where notifications will be FTPed to
-EdgeMotionDir="/motion"
+EdgeMotionDir="motion"
 	# Directory on the edge server where motion videos will be FTPed to
 #----------------Functions------------------------------
 FTPToPi() {
