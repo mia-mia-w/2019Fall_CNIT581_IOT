@@ -27,9 +27,9 @@
 # 7. Restart process
 #----------------Static-Variables------------------------
 T="true"
-LocalFTPLocation="/home/Frank"
+LocalFTPLocation="/var/www/html"
 LocalFTPNotification="notifications"
-LocalFTPMotion="motion"
+LocalFTPMotion="camera"
 ScriptLocation="/root/2019Fall_CNIT581_IOT"
 WebServer="172.16.1.2"
 WebMotionDir="/var/www/html/camera"
@@ -47,20 +47,20 @@ Check() {
 	fi
 }
 
-MotionCheck() {
-	NewMotionDir=$(inotifywait -t 60 -e create --format '%f' "$1")
-	if [ -n "$NewMotionDir" ]; then
-		$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebMotionDir" "$Date"
-		sleep 5
-		echo "Collecting the motion videos..."
-		Videos=$(ls $1/$NewMotionDir)
-			# Grab all FTPed motion videos
-		for Video in $Videos; do
-			$ScriptLocation/FTP.sh "$WebServer" "$WebMotionDir" "$Date" "$Video"
-		done
-		echo "Sent all videos."
-	fi
-}
+# MotionCheck() {
+# 	NewMotionDir=$(inotifywait -t 60 -e create --format '%f' "$1")
+# 	if [ -n "$NewMotionDir" ]; then
+# 		$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebMotionDir" "$Date"
+# 		sleep 5
+# 		echo "Collecting the motion videos..."
+# 		Videos=$(ls $1/$NewMotionDir)
+# 			# Grab all FTPed motion videos
+# 		for Video in $Videos; do
+# 			$ScriptLocation/FTP.sh "$WebServer" "$WebMotionDir" "$Date" "$Video"
+# 		done
+# 		echo "Sent all videos."
+# 	fi
+# }
 #----------------Main-----------------------------------
 #if [ -z "$(ps -x | grep Pi-Motion-Detection.sh)" ]; then
 	# Start script if not started
@@ -68,8 +68,8 @@ MotionCheck() {
 		# Just changing directories
 	while $T -e "true"; do
 		NotificationsDir="$LocalFTPLocation/$LocalFTPNotification"
-		MotionDir="$LocalFTPLocation/$LocalFTPMotion"
-		Check "$NotificationsDir" "$MotionDir" &
+		#MotionDir="$LocalFTPLocation/$LocalFTPMotion"
+		NotificationCheck "$NotificationsDir" "$MotionDir" &
 		sleep 61
 	done
 #else
