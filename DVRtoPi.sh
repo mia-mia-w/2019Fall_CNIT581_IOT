@@ -52,7 +52,7 @@ FTPtoPi() {
 MotionCheck() {
 	newjson=$(inotifywait -t 20 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 	if [ ! -z "$newjson" ]; then
-		echo "Created file was named $newjson."
+		echo "Created file was named $1/meta/$newjson."
 			# Checks recursively for 20 seconds if any file has been created
 		Date=$(date +%m-%d-%Y-%H:%M)
 				# Get date in a nice format (ex.11-20-2020-17:14)
