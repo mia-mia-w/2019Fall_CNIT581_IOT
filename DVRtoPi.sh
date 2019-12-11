@@ -15,10 +15,7 @@
 # 6. 	PATH=/root
 # 7.	0 * * * * /root/2019Fall_CNIT581_IOT/DVRtoPi.sh
 # 8. chown root:root 2019Fall_CNIT581_IOT/DVRtoPi.sh
-# 9. chmod +x 2019Fall_CNIT581_IOT/DVRtoPi.sh
-# 8. chmod +x 2019Fall_CNIT581_IOT/SendNotificationFTP.sh
-# 8. chmod +x 2019Fall_CNIT581_IOT/FTPtoPi.sh
-# 8. chmod +x 2019Fall_CNIT581_IOT/FTPMkdir.sh
+# 9. chmod +x 2019Fall_CNIT581_IOT/*.sh
 
 #----------------Overall-Steps---------------------------
 # 1. Detect a new JSON was created per each camera on current date
@@ -53,8 +50,8 @@ FTPtoPi() {
 		# Rename it
 }
 MotionCheck() {
-	$newjson=$(inotifywait -t 20 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
-	if [ ! -z $newjson ]; then
+	newjson=$(inotifywait -t 20 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
+	if [ ! -z "$newjson" ]; then
 		echo "Created file was named $newjson."
 			# Checks recursively for 20 seconds if any file has been created
 		Date=$(date +%m-%d-%Y-%H:%M)
@@ -68,9 +65,10 @@ MotionCheck() {
 		echo "Making $Date directory at $EdgeServer:$EdgeMotionDir"
 		$ScriptLocation/FTPMkdir.sh "$EdgeServer" "$EdgeMotionDir" "$Date"
 			# Make a directory with the timestamp in the Pi's motion folder
+		echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
 		while [ "$(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')" = 'true' ]; do
 			# Detect if motion is still in progress according to the JSON
-			Videos=$(grep -v "_FTPed\.mp4")
+			Videos=$(ls -p | grep -v "_FTPed\.mp4|/")
 				# Grab all videos that do not contain _FTPed.mp4
 			for Video in $Videos; do
 				if [[ $(cut -f1 -d '_' "$Video") -ge "$StartTime" ]]; then
@@ -80,9 +78,11 @@ MotionCheck() {
 				fi
 			done
 		done
+		echo "No longer in progress."
+		echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
 		EndTime=$(grep -Po 'endTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
 			# Obtain motion's endTime from new JSON
-		Videos=$(grep -v "_FTPed\.mp4")
+		Videos=$(ls -p | grep -v "_FTPed\.mp4|/")
 			# Grab all videos that do not contain _FTPed.mp4
 		for Video in $Videos; do
 			if [[ $(cut -f1 -d '_' "$Video") -ge "$StartTime" ]] && [[ $(cut -f1 -d '_' "$Video") -le "$EndTime" ]]; then
