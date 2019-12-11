@@ -106,7 +106,7 @@ SendNotification() {
 }
 
 #----------------Main-----------------------------------
-if [ -z "$(ps -x | grep DVR-Motion-Detection.sh)" ]; then
+#if [ -z "$(ps x | grep DVR-Motion-Detection.sh)" ]; then
 	# Start script if not started
 	cd "$UniFiDir" || exit
 		# Just changing directories
@@ -131,6 +131,6 @@ if [ -z "$(ps -x | grep DVR-Motion-Detection.sh)" ]; then
 		sleep 61
 			# Wait for (inotifywait_time + 1) seconds to check for a new date
 	done
-else
-	echo "Script is already running. See: $(ps -x | grep DVR-Motion-Detection.sh)"
-fi
+#else
+#	echo "Script is already running. See: $(ps x | grep DVR-Motion-Detection.sh)"
+#fi

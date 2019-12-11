@@ -39,7 +39,7 @@ NotificationCheck() {
 		Date=$(echo "${NewNotification%%.*}")
 		echo "Motion was detected at $Date."
 		echo "Sending SMS message..."
-		python send_sms.py
+		python /root/send_sms.py
 		echo "Sent."
 	fi
 }
@@ -59,7 +59,7 @@ MotionCheck() {
 	fi
 }
 #----------------Main-----------------------------------
-if [ -z "$(ps -x | grep Pi-Motion-Detection.sh)" ]; then
+#if [ -z "$(ps -x | grep Pi-Motion-Detection.sh)" ]; then
 	# Start script if not started
 	cd "$LocalFTPLocation" || exit
 		# Just changing directories
@@ -68,6 +68,6 @@ if [ -z "$(ps -x | grep Pi-Motion-Detection.sh)" ]; then
 	MotionDir="$LocalFTPLocation/$LocalFTPMotion"
 	MotionCheck "$MotionDir" &
 	sleep 61
-else
-	echo "Script is already running. See: $(ps -x | grep Pi-Motion-Detection.sh)"
-fi
+#else
+#	echo "Script is already running. See: $(ps -x | grep Pi-Motion-Detection.sh)"
+#fi
