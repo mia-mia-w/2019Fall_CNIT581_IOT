@@ -30,11 +30,11 @@ T="true"
 	# run forever
 UniFiDir="/srv/unifi-video/videos"
 	# Where the videos are stored at
-EdgeServer="172.16.2.12"
+EdgeServer="172.16.1.2"
 	# Edge server's IP address
-EdgeNotificationsDir="notifications"
+EdgeNotificationsDir="/var/www/html/notifications"
 	# Directory on the edge server where notifications will be FTPed to
-EdgeMotionDir="motion"
+EdgeMotionDir="/var/www/html/camera"
 	# Directory on the edge server where motion videos will be FTPed to
 ScriptLocation="/root/2019Fall_CNIT581_IOT"
 Date=""

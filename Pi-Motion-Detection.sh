@@ -26,17 +26,20 @@
 # 6. Filter for current motion videos, FTP them, and rename them with *_FTPed.mp4
 # 7. Restart process
 #----------------Static-Variables------------------------
+T="true"
 LocalFTPLocation="/home/Frank"
 LocalFTPNotification="notifications"
 LocalFTPMotion="motion"
 ScriptLocation="/root/2019Fall_CNIT581_IOT"
-WebServer="cnit5.tech.purdue.edu"
-WebMotionDir="var/www/html/camera"
+WebServer="172.16.1.2"
+WebMotionDir="/var/www/html/camera"
 Date=""
-NotificationCheck() {
+Date1=""
+Check() {
 	NewNotification=$(inotifywait -t 60 -e create --format '%f' "$1")
 	if [ -n "$NewNotification" ]; then
 		Date=$(echo "${NewNotification%%.*}")
+		Date1="$Date"
 		echo "Motion was detected at $Date."
 		echo "Sending SMS message..."
 		python /root/send_sms.py
@@ -63,11 +66,12 @@ MotionCheck() {
 	# Start script if not started
 	cd "$LocalFTPLocation" || exit
 		# Just changing directories
-	NotificationsDir="$LocalFTPLocation/$LocalFTPNotification"
-	NotificationCheck "$NotificationsDir" &
-	MotionDir="$LocalFTPLocation/$LocalFTPMotion"
-	MotionCheck "$MotionDir" &
-	sleep 61
+	while $T -e "true"; do
+		NotificationsDir="$LocalFTPLocation/$LocalFTPNotification"
+		MotionDir="$LocalFTPLocation/$LocalFTPMotion"
+		Check "$NotificationsDir" "$MotionDir" &
+		sleep 61
+	done
 #else
 #	echo "Script is already running. See: $(ps -x | grep Pi-Motion-Detection.sh)"
 #fi
