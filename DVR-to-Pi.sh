@@ -40,10 +40,11 @@ Date=""
 	# Establish a global Date variable
 #----------------Functions------------------------------
 FTPToPi() {
-	ftp -4 "$EdgeServer"
+	ftp -4 "$EdgeServer" <<EOD
 	cd "$EdgeMotionDir/$Date"
 	put "$1"
-	quit
+	bye
+	EOD
 		# FTP the motion video file to the edge server
 	EditedName=$("${1//.mp4/_FTPed.mp4}")
 		# Add _FTPed.mp4 to the end of the FTPed motion video
@@ -62,10 +63,11 @@ MotionCheck() {
 			# Just changing directories
 		StartTime=$(grep -Po 'startTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
 			# Obtain motion's startTime from new JSON
-		ftp -4 -n "$EdgeServer"
+		ftp -4 "$EdgeServer" <<EOD
 		cd "$EdgeMotionDir"
 		mkdir "$Date"
-		quit
+		bye
+		EOD
 			# Make a directory with the timestamp in the Pi's motion folder
 		while [ "$(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')" = 'true' ]; do
 			# Detect if motion is still in progress according to the JSON
@@ -95,10 +97,11 @@ MotionCheck() {
 SendNotification() {
 	echo "$null" >> "$Date.txt"
 		# Create notification message to alert the farmer rather than wait for the large video file to transfer (ex.11-20-2020-17:14.txt)
-	ftp -4 "$EdgeServer"
+	ftp -4 "$EdgeServer" <<EOD
 	cd "$EdgeNotificationsDir"
 	put "$Date.txt"
-	exit
+	bye
+	EOD
 		# FTP a notification of motion to the edge server to beginning notification of the farmer
 	rm "./$Date.txt"
 		# Clean up the local notification
@@ -127,7 +130,7 @@ SendNotification() {
 				# Check for motion (JSON files) at path and run in the background
 			ctr=$((ctr + 1))
 		done
-		Wait 21
+		sleep 21
 			# Wait for (inotifywait_time + 1) seconds to check for a new date
 	done
 # else
