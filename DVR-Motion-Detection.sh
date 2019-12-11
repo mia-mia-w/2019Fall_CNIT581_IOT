@@ -13,8 +13,8 @@
 # 4. 	SHELL=/bin/bash
 # 5. 	MAILTO=root@example.com
 # 6. 	PATH=/root
-# 7.	0 * * * * /root/2019Fall_CNIT581_IOT/DVRtoPi.sh
-# 8. chown root:root 2019Fall_CNIT581_IOT/DVRtoPi.sh
+# 7.	0 * * * * /root/2019Fall_CNIT581_IOT/DVR-Motion-Detection.sh
+# 8. chown root:root 2019Fall_CNIT581_IOT/DVR-Motion-Detection.sh
 # 9. chmod +x 2019Fall_CNIT581_IOT/*.sh
 
 #----------------Overall-Steps---------------------------
@@ -28,7 +28,7 @@
 #----------------Static-Variables------------------------
 T="true"
 	# run forever
-UniFiDir="/var/lib/unifi-video/videos"
+UniFiDir="/srv/unifi-video/videos"
 	# Where the videos are stored at
 EdgeServer="172.16.2.12"
 	# Edge server's IP address
@@ -42,16 +42,16 @@ Date=""
 #----------------Functions------------------------------
 FTPtoPi() {
 	echo "FTPing $1 to $EdgeServer:$EdgeMotionDir"
-	$ScriptLocation/FTPtoPi.sh "$EdgeServer" "$EdgeMotionDir" "$Date" "$1"
+	$ScriptLocation/FTP.sh "$EdgeServer" "$EdgeMotionDir" "$Date" "$1"
 		# FTP the motion video file to the edge server
-	EditedName=$("${1//.mp4/_FTPed.mp4}")
+	EditedName=$(echo "${1/.mp4/_FTPed.mp4}")
 		# Add _FTPed.mp4 to the end of the FTPed motion video
 	mv "$1" "$EditedName"
 		# Rename it
 }
 MotionCheck() {
-	newjson=$(inotifywait -t 20 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
-	if [ ! -z "$newjson" ]; then
+	newjson=$(inotifywait -t 60 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
+	if [ -n "$newjson" ]; then
 		echo "Created file was named $1/meta/$newjson."
 			# Checks recursively for 20 seconds if any file has been created
 		Date=$(date +%m-%d-%Y-%H:%M)
@@ -63,48 +63,50 @@ MotionCheck() {
 		StartTime=$(grep -Po 'startTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
 			# Obtain motion's startTime from new JSON
 		echo "Making $Date directory at $EdgeServer:$EdgeMotionDir"
-		$ScriptLocation/FTPMkdir.sh "$EdgeServer" "$EdgeMotionDir" "$Date"
+		$ScriptLocation/FTP-Mkdir.sh "$EdgeServer" "$EdgeMotionDir" "$Date"
 			# Make a directory with the timestamp in the Pi's motion folder
 		echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
 		while [ "$(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')" = 'true' ]; do
 			# Detect if motion is still in progress according to the JSON
-			Videos=$(ls -p | grep -v "_FTPed\.mp4|/")
+			Videos=$(ls -p | grep -Ev "_FTPed|/")
 				# Grab all videos that do not contain _FTPed.mp4
 			for Video in $Videos; do
-				if [[ $(cut -f1 -d '_' "$Video") -ge "$StartTime" ]]; then
+				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]]; then
 						# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime
+					echo "startTime = $StartTime"
 					FTPtoPi "$Video"
 						# If true, FTP it
 				fi
 			done
 		done
-		echo "No longer in progress."
 		echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
 		EndTime=$(grep -Po 'endTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
 			# Obtain motion's endTime from new JSON
-		Videos=$(ls -p | grep -v "_FTPed\.mp4|/")
+		echo "endTime = $EndTime."
+		Videos=$(ls -p | grep -Ev "_FTPed|/")
 			# Grab all videos that do not contain _FTPed.mp4
 		for Video in $Videos; do
-			if [[ $(cut -f1 -d '_' "$Video") -ge "$StartTime" ]] && [[ $(cut -f1 -d '_' "$Video") -le "$EndTime" ]]; then
+			if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
 					# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime and less than or equal to the motion's endTime
 				FTPtoPi "$Video"
 					# If true, FTP it
 			fi
 		done
+		echo "Sent all videos."
 	fi
 }
 SendNotification() {
 	echo "$null" >> "$Date.txt"
 		# Create notification message to alert the farmer rather than wait for the large video file to transfer (ex.11-20-2020-17:14.txt)
 	echo "FTPing $Date notification to $EdgeServer:$EdgeNotificationsDir"
-	$ScriptLocation/SendNotificationFTP.sh "$EdgeServer" "$EdgeNotificationsDir" "$Date"
+	$ScriptLocation/DVR-Notify-FTP-Pi.sh "$EdgeServer" "$EdgeNotificationsDir" "$Date"
 		# FTP a notification of motion to the edge server to beginning notification of the farmer
 	rm "$Date.txt"
 		# Clean up the local notification
 }
 
 #----------------Main-----------------------------------
-#if [ -z "$(pgrep -f "DVR-to-Pi.sh")" ]; then
+if [ -z "$(ps -x | grep DVR-Motion-Detection.sh)" ]; then
 	# Start script if not started
 	cd "$UniFiDir" || exit
 		# Just changing directories
@@ -126,9 +128,9 @@ SendNotification() {
 				# Check for motion (JSON files) at path and run in the background
 			ctr=$((ctr + 1))
 		done
-		sleep 21
+		sleep 61
 			# Wait for (inotifywait_time + 1) seconds to check for a new date
 	done
-# else
-	# echo "Script is already running."
-#fi
+else
+	echo "Script is already running. See: $(ps -x | grep DVR-Motion-Detection.sh)"
+fi
