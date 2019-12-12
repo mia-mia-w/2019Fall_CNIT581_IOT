@@ -1,22 +1,19 @@
 #!/bin/bash
-
 #----------------Random----------------------------------
 # Good code validating website: https://www.shellcheck.net/
 # vi ~/.netrc
 #		machine 172.16.2.12 login Frank password <password>
 # chmod 600 ~/.netrc
-
-#----------------Installation-Steps----------------------
+#----------------Installation-Steps-on-DVR----------------
 # 1. sudo apt-get inotify-tools ftp git -y --force-yes
 # 2. git clone https://github.com/Zamanry/2019Fall_CNIT581_IOT.git
 # 3. crontab -e
 # 4. 	SHELL=/bin/bash
 # 5. 	MAILTO=root@example.com
 # 6. 	PATH=/root
-# 7.	0 * * * * /root/2019Fall_CNIT581_IOT/DVR-Motion-Detection.sh
-# 8. chown root:root 2019Fall_CNIT581_IOT/DVR-Motion-Detection.sh
-# 9. chmod +x 2019Fall_CNIT581_IOT/*.sh
-
+# 7.	* 1 * * * /root/2019Fall_CNIT581_IOT/DVR-Motion-Detection.sh
+# 8. sudo chown root:root 2019Fall_CNIT581_IOT/DVR-Motion-Detection.sh
+# 9. sudo chmod +x 2019Fall_CNIT581_IOT/*.sh
 #----------------Overall-Steps---------------------------
 # 1. Detect a new JSON was created per each camera on current date
 # 2. SendNotification
@@ -36,6 +33,7 @@ EdgeNotificationsDir="/var/www/html/notifications"
 	# Directory on the edge server where notifications will be FTPed to
 EdgeMotionDir="/var/www/html/camera"
 	# Directory on the edge server where motion videos will be FTPed to
+EdgeLiveBackupDir="/var/www/html/LiveBackups"
 ScriptLocation="/root/2019Fall_CNIT581_IOT"
 Date=""
 	# Establish a global Date variable
@@ -50,49 +48,78 @@ FTPtoPi() {
 		# Rename it
 }
 MotionCheck() {
-	newjson=$(inotifywait -t 60 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
+	newjson=$(inotifywait -t 5 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 	if [ -n "$newjson" ]; then
-		echo "Created file was named $1/meta/$newjson."
-			# Checks recursively for 20 seconds if any file has been created
-		Date=$(date +%m-%d-%Y-%H:%M)
-				# Get date in a nice format (ex.11-20-2020-17:14)
-		SendNotification
-			# Since a new motion (JSON) was found, send a notification to edge server
-		cd "$1" || exit
-			# Just changing directories
-		StartTime=$(grep -Po 'startTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
-			# Obtain motion's startTime from new JSON
-		echo "Making $Date directory at $EdgeServer:$EdgeMotionDir"
-		$ScriptLocation/FTP-Mkdir.sh "$EdgeServer" "$EdgeMotionDir" "$Date"
-			# Make a directory with the timestamp in the Pi's motion folder
-		echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
-		while [ "$(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')" = 'true' ]; do
-			# Detect if motion is still in progress according to the JSON
+		eventType=$(grep -Po '{"eventType":"(.*?)"' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
+		echo "eventType = $eventType"
+		if ["$eventType" -eq 'motionRecording']; then
+			echo "Motion file: $1/meta/$newjson."
+				# Checks recursively for 20 seconds if any file has been created
+			Date=$(date +%m-%d-%Y-%H:%M)
+					# Get date in a nice format (ex.11-20-2020-17:14)
+			SendNotification
+				# Since a new motion (JSON) was found, send a notification to edge server
+			cd "$1" || exit
+				# Just changing directories
+			StartTime=$(grep -Po 'startTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
+				# Obtain motion's startTime from new JSON
+			echo "Making $Date directory at $EdgeServer:$EdgeMotionDir"
+			$ScriptLocation/FTP-Mkdir.sh "$EdgeServer" "$EdgeMotionDir" "$Date"
+				# Make a directory with the timestamp in the Pi's motion folder
+			echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
+			while [ "$(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')" = 'true' ]; do
+				# Detect if motion is still in progress according to the JSON
+				Videos=$(ls -p | grep -Ev "_FTPed|/")
+					# Grab all videos that do not contain _FTPed.mp4
+				for Video in $Videos; do
+					if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]]; then
+							# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime
+						echo "startTime = $StartTime"
+						FTPtoPi "$Video"
+							# If true, FTP it
+					fi
+				done
+			done
+			echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
+			EndTime=$(grep -Po 'endTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
+				# Obtain motion's endTime from new JSON
+			echo "endTime = $EndTime."
 			Videos=$(ls -p | grep -Ev "_FTPed|/")
 				# Grab all videos that do not contain _FTPed.mp4
 			for Video in $Videos; do
-				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]]; then
-						# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime
-					echo "startTime = $StartTime"
+				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
+						# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime and less than or equal to the motion's endTime
 					FTPtoPi "$Video"
 						# If true, FTP it
 				fi
 			done
-		done
-		echo "inProgress = $(grep -Po 'inProgress":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')"
-		EndTime=$(grep -Po 'endTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
-			# Obtain motion's endTime from new JSON
-		echo "endTime = $EndTime."
-		Videos=$(ls -p | grep -Ev "_FTPed|/")
-			# Grab all videos that do not contain _FTPed.mp4
-		for Video in $Videos; do
-			if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
-					# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime and less than or equal to the motion's endTime
-				FTPtoPi "$Video"
-					# If true, FTP it
-			fi
-		done
-		echo "Sent all videos."
+			echo "Sent all motion videos."
+		elif ["$eventType" -eq 'fullTimeRecording']; then
+			echo "Created live file was named $1/meta/$newjson."
+				# Checks recursively for 20 seconds if any file has been created
+			Date=$(date +%m-%d-%Y-%H:%M)
+					# Get date in a nice format (ex.11-20-2020-17:14)
+			SendNotification
+				# Since a new motion (JSON) was found, send a notification to edge server
+			cd "$1" || exit
+				# Just changing directories
+			StartTime=$(grep -Po 'startTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
+				# Obtain motion's startTime from new JSON
+			echo "startTime = $StartTime."
+			EndTime=$(grep -Po 'endTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
+				# Obtain motion's endTime from new JSON
+			echo "endTime = $EndTime."
+			$ScriptLocation/FTP-Mkdir.sh "$EdgeServer" "$EdgeLiveBackupDir" "$Date"
+				# Make a directory with the timestamp in the Pi's motion folder
+			Videos=$(ls -p | grep -Ev "/|.txt")
+			for Video in $Videos; do
+				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
+						# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime and less than or equal to the motion's endTime
+					FTPtoPi "$Video"
+						# If true, FTP it
+				fi
+			done
+		fi
 	fi
 }
 SendNotification() {
@@ -128,7 +155,7 @@ SendNotification() {
 				# Check for motion (JSON files) at path and run in the background
 			ctr=$((ctr + 1))
 		done
-		sleep 61
+		sleep 5
 			# Wait for (inotifywait_time + 1) seconds to check for a new date
 	done
 #else

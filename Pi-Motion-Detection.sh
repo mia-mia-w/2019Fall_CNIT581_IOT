@@ -35,14 +35,14 @@ WebServer="172.16.1.2"
 WebMotionDir="/var/www/html/camera"
 Date=""
 Date1=""
-Check() {
+NotificationCheck() {
 	NewNotification=$(inotifywait -t 60 -e create --format '%f' "$1")
 	if [ -n "$NewNotification" ]; then
 		Date=$(echo "${NewNotification%%.*}")
 		Date1="$Date"
 		echo "Motion was detected at $Date."
 		echo "Sending SMS message..."
-		python /root/send_sms.py
+		python3 /root/send_sms.py
 		echo "Sent."
 	fi
 }
@@ -69,7 +69,7 @@ Check() {
 	while $T -e "true"; do
 		NotificationsDir="$LocalFTPLocation/$LocalFTPNotification"
 		#MotionDir="$LocalFTPLocation/$LocalFTPMotion"
-		NotificationCheck "$NotificationsDir" "$MotionDir" &
+		NotificationCheck "$NotificationsDir" &
 		sleep 61
 	done
 #else
