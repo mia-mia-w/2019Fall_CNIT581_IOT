@@ -40,7 +40,7 @@ Date=""
 #----------------Functions------------------------------
 FTPtoPi() {
 	echo "FTPing $1 to $EdgeServer:$EdgeMotionDir"
-	$ScriptLocation/FTP.sh "$EdgeServer" "$EdgeMotionDir" "$Date" "$1"
+	$ScriptLocation/FTP.sh "$EdgeServer" "$2" "$Date" "$1"
 		# FTP the motion video file to the edge server
 	EditedName=$(echo "${1/.mp4/_FTPed.mp4}")
 		# Add _FTPed.mp4 to the end of the FTPed motion video
@@ -89,7 +89,7 @@ MotionCheck() {
 			for Video in $Videos; do
 				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
 						# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime and less than or equal to the motion's endTime
-					FTPtoPi "$Video"
+					FTPtoPi "$Video" "$EdgeMotionDir"
 						# If true, FTP it
 				fi
 			done
@@ -99,10 +99,6 @@ MotionCheck() {
 				# Checks recursively for 20 seconds if any file has been created
 			Date=$(date +%m-%d-%Y-%H:%M)
 					# Get date in a nice format (ex.11-20-2020-17:14)
-			SendNotification
-				# Since a new motion (JSON) was found, send a notification to edge server
-			cd "$1" || exit
-				# Just changing directories
 			StartTime=$(grep -Po 'startTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
 				# Obtain motion's startTime from new JSON
 			echo "startTime = $StartTime."
@@ -115,7 +111,7 @@ MotionCheck() {
 			for Video in $Videos; do
 				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
 						# Motion video format is *_*_*_*.mp4, we take the first * and see if it is greater than or equal to the motion's startTime and less than or equal to the motion's endTime
-					FTPtoPi "$Video"
+					FTPtoPi "$Video" "$EdgeLiveBackupDir"
 						# If true, FTP it
 				fi
 			done
