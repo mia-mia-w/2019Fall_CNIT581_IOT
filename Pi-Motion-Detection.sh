@@ -27,54 +27,53 @@
 # 7. Restart process
 #----------------Static-Variables------------------------
 T="true"
-LocalFTPLocation="/var/www/html"
-LocalFTPNotification="notifications"
-LocalFTPMotion="camera"
-ScriptLocation="/root/2019Fall_CNIT581_IOT"
-WebServer="172.16.1.2"
-WebMotionDir="/var/www/html/camera"
+	# Run script forever
+LocalFTPLocationDir="/var/www/html"
+	# Parent directory of all FTP directories
+LocalFTPBackupsDir="LiveBackups"
+	# Directory of fullTimeRecordings
+LocalFTPMotionDir="camera"
+	# Directory of motionRecordings
+LocalFTPNotificationDir="notifications"
+	# Directory of motionRecording notifications
+ScriptLocationDir="/root/2019Fall_CNIT581_IOT"
+	# The parent directory of the script
+SendSMSLocation="/root/send_sms.py"
+	# Location of send SMS Python script
 Date=""
-Date1=""
+	# Leave blank; Establish $Date as a global variable
+EventFound=""
+	# Leave blank; Establish $EventFound as a global variable
 NotificationCheck() {
-	NewNotification=$(inotifywait -t 60 -e create --format '%f' "$1")
-	if [ -n "$NewNotification" ]; then
-		Date=$(echo "${NewNotification%%.*}")
-		Date1="$Date"
-		echo "Motion was detected at $Date."
-		echo "Sending SMS message..."
-		python3 /root/send_sms.py
-		echo "Sent."
-	fi
+	NewNotification=$(inotifywait -e create --format '%f' "$1")
+		# Check for new txt files. Output the name of the create file. Will wait here till event is found.
+	Date=$(echo "${NewNotification%%.*}")
+		# Get motionRecording's timestamp.
+	echo "Motion was detected at $Date."
+	echo "Sending SMS message..."
+	python3 "$SendSMSLocation"
+	echo "Done."
+	EventFound="true"
 }
-
-# MotionCheck() {
-# 	NewMotionDir=$(inotifywait -t 60 -e create --format '%f' "$1")
-# 	if [ -n "$NewMotionDir" ]; then
-# 		$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebMotionDir" "$Date"
-# 		sleep 5
-# 		echo "Collecting the motion videos..."
-# 		Videos=$(ls $1/$NewMotionDir)
-# 			# Grab all FTPed motion videos
-# 		for Video in $Videos; do
-# 			$ScriptLocation/FTP.sh "$WebServer" "$WebMotionDir" "$Date" "$Video"
-# 		done
-# 		echo "Sent all videos."
-# 	fi
-# }
 #----------------Main-----------------------------------
-#if [ -z "$(ps -x | grep Pi-Motion-Detection.sh)" ]; then
-	# Start script if not started
-	cd "$LocalFTPLocation" || exit
-		# Just changing directories
-	while $T -e "true"; do
-		NotificationsDir="$LocalFTPLocation/$LocalFTPNotification"
-		#MotionDir="$LocalFTPLocation/$LocalFTPMotion"
-		NotificationCheck "$NotificationsDir" &
-		find /var/www/html/camera -mtime +3 -exec rm -f {} \;
-		find /var/www/html/LiveBackups -mtime +3 -exec rm -f {} \;
-		find /var/www/html/notifications -mtime +3 -exec rm -f {} \;
-		sleep 61
+cd "$LocalFTPLocationDir" || exit
+# Change script's working directory to the parent directory of all FTP directories
+while $T -e "true"; do
+	NotificationCheck "$LocalFTPLocationDir/$LocalFTPNotificationDir" &
+ #MotionCheck "$LocalFTPLocation/$LocalFTPMotionDir" &
+	while "$EventFound" -ne "true"; do
+		# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
+		# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
+		sleep 1
+		if [ $(find "$LocalFTPLocationDir/$LocalFTPBackupsDir" -mtime +3) -n "$null" ]; then
+			# Made to not constantly be deleting files. Only when time is older than three days.
+			echo "Deleting any camera archives older than three days."
+			find "$LocalFTPLocationDir/$LocalFTPMotionDir" -mtime +3 -exec rm -f {} \;
+			find "$LocalFTPLocationDir/$LocalFTPBackupsDir" -mtime +3 -exec rm -f {} \;
+			find "$LocalFTPLocationDir/$LocalFTPNotificationDir" -mtime +3 -exec rm -f {};
+			echo "Done."
+		fi
 	done
-#else
-#	echo "Script is already running. See: $(ps -x | grep Pi-Motion-Detection.sh)"
-#fi
+	EventFound="false"
+		# Reset $EventFound variable
+done
