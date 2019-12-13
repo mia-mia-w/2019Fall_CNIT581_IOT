@@ -65,12 +65,12 @@ while $T -e "true"; do
 		# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
 		# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
 		sleep 1
-		if [ $(find "$LocalFTPLocationDir/$LocalFTPBackupsDir" -mtime +3) -n "$null" ]; then
+		if [ "$(find "$LocalFTPLocationDir/$LocalFTPBackupsDir" -mtime +3)" -ne "$null" ]; then
 			# Made to not constantly be deleting files. Only when time is older than three days.
 			echo "Deleting any camera archives older than three days."
 			find "$LocalFTPLocationDir/$LocalFTPMotionDir" -mtime +3 -exec rm -f {} \;
 			find "$LocalFTPLocationDir/$LocalFTPBackupsDir" -mtime +3 -exec rm -f {} \;
-			find "$LocalFTPLocationDir/$LocalFTPNotificationDir" -mtime +3 -exec rm -f {};
+			find "$LocalFTPLocationDir/$LocalFTPNotificationDir" -mtime +3 -exec rm -f {} \;
 			echo "Done."
 		fi
 	done

@@ -56,7 +56,7 @@ FTPtoPi() {
 	echo "FTPing $1 to $WebServer:$2"
 	$ScriptLocation/FTP.sh "$WebServer" "$2" "$Date" "$1"
 		# FTP the video file to the web server
-	if [ "$2" -e "$WebMotionDir" ]; then
+	if [ "$2" = "$WebMotionDir" ]; then
 		# Only rename motion videos, not backup videos
 		EditedName=$(echo "${1/.mp4/_FTPed.mp4}")
 			# Add _FTPed.mp4 to the end of the FTPed motion video
@@ -67,7 +67,7 @@ FTPtoPi() {
 JSONCheck() {
 	JSON=$(inotifywait -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 		# Check for new JSON files and not JPG or PNG. Output the name of the create file. Will wait here till event is found.
-	if [ -n $JSON ]; then
+	if [ -n "$JSON" ]; then
 		# Run only if JSON is not $null
 		echo "Event detected."
 		cd "$1" || exit
@@ -89,7 +89,7 @@ JSONCheck() {
 			$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebMotionDir" "$Date"
 				# Make a directory with the timestamp in the web server's motion directory
 			echo "Done."
-			while [ "$(grep -Po 'inProgress":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')" -e 'true' ]; do
+			while [ "$(grep -Po 'inProgress":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')" = 'true' ]; do
 				# Detect if motion is still in progress according to the JSON
 				Videos=$(ls -p | grep -Ev "_FTPed|/|.txt")
 					# Grab all items that do not contain _FTPed, a .txt, or are a directory			for Video in $Videos; do
