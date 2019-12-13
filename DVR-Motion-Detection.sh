@@ -50,17 +50,17 @@ FTPtoPi() {
 MotionCheck() {
 	newjson=$(inotifywait -t 5 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 	if [ -n "$newjson" ]; then
+		cd "$1" || exit
+			# Just changing directories
 		eventType=$(grep -Po "\{\"eventType\"\:\"(.*?)\"" "meta/$newjson" | sed 's/"$//' | sed -n 's/.*"//p')
-		echo "eventType = $eventType"
-		if [ "$eventType" -eq "motionRecording" ]; then
+		echo "eventType = $eventType."
+		if [ "$eventType" = "motionRecording" ]; then
 			echo "Motion file: $1/meta/$newjson."
 				# Checks recursively for 20 seconds if any file has been created
 			Date=$(date +%m-%d-%Y-%H:%M)
 					# Get date in a nice format (ex.11-20-2020-17:14)
 			SendNotification
 				# Since a new motion (JSON) was found, send a notification to edge server
-			cd "$1" || exit
-				# Just changing directories
 			StartTime=$(grep -Po 'startTime":(.*?),' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
 				# Obtain motion's startTime from new JSON
 			echo "Making $Date directory at $EdgeServer:$EdgeMotionDir"
@@ -94,7 +94,7 @@ MotionCheck() {
 				fi
 			done
 			echo "Sent all motion videos."
-		elif [ "$eventType" -eq "fullTimeRecording" ]; then
+		elif [ "$eventType" = "fullTimeRecording" ]; then
 			echo "Created live file was named $1/meta/$newjson."
 				# Checks recursively for 20 seconds if any file has been created
 			Date=$(date +%m-%d-%Y-%H:%M)
