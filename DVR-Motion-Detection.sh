@@ -49,7 +49,7 @@ ScriptLocation="/root/2019Fall_CNIT581_IOT"
 	# The parent directory of the script
 Date=""
 	# Leave blank; Establish $Date as a global variable
-EventFound=""
+EventFound="false"
 	# Leave blank; Establish $EventFound as a global variable
 #----------------Functions------------------------------
 FTPtoPi() {
@@ -67,79 +67,82 @@ FTPtoPi() {
 JSONCheck() {
 	JSON=$(inotifywait -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 		# Check for new JSON files and not JPG or PNG. Output the name of the create file. Will wait here till event is found.
-	echo "Event detected."
-	cd "$1" || exit
-		# Change directory to camera's UTC date
-	eventType=$(grep -Po "\{\"eventType\"\:\"(.*?)\"" "meta/$JSON" | sed 's/"$//' | sed -n 's/.*"//p')
-		# Obtain eventType (fullTimeRecording or motionRecording)
-	echo "eventType = $eventType."
-	Date=$(date +%m-%d-%Y-%H:%M)
-			# Get current timezone date in a nice format (ex. 11-20-2020-17:14)
-	if [ "$eventType" -e "motionRecording" ]; then
-		# If eventType is a motionRecording, then
-		echo "Motion JSON = $1/meta/$JSON."
-		SendNotification
-			# Since a new motionRecording was found, send a notification to web server
-		StartTime=$(grep -Po 'startTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
-			# Obtain motionRecording's startTime from the JSON
-		echo "startTime = $StartTime."
-		echo "Making motionRecording directory at $WebServer:$WebMotionDir/$Date."
-		$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebMotionDir" "$Date"
-			# Make a directory with the timestamp in the web server's motion directory
-		echo "Done."
-		while [ "$(grep -Po 'inProgress":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')" -e 'true' ]; do
-			# Detect if motion is still in progress according to the JSON
+	if [ -n $JSON ]; then
+		# Run only if JSON is not $null
+		echo "Event detected."
+		cd "$1" || exit
+			# Change directory to camera's UTC date
+		eventType=$(grep -Po "\{\"eventType\"\:\"(.*?)\"" "meta/$JSON" | sed 's/"$//' | sed -n 's/.*"//p')
+			# Obtain eventType (fullTimeRecording or motionRecording)
+		echo "eventType = $eventType."
+		Date=$(date +%m-%d-%Y-%H:%M)
+				# Get current timezone date in a nice format (ex. 11-20-2020-17:14)
+		if [ "$eventType" = "motionRecording" ]; then
+			# If eventType is a motionRecording, then
+			echo "Motion JSON = $1/meta/$JSON."
+			SendNotification
+				# Since a new motionRecording was found, send a notification to web server
+			StartTime=$(grep -Po 'startTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
+				# Obtain motionRecording's startTime from the JSON
+			echo "startTime = $StartTime."
+			echo "Making motionRecording directory at $WebServer:$WebMotionDir/$Date."
+			$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebMotionDir" "$Date"
+				# Make a directory with the timestamp in the web server's motion directory
+			echo "Done."
+			while [ "$(grep -Po 'inProgress":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')" -e 'true' ]; do
+				# Detect if motion is still in progress according to the JSON
+				Videos=$(ls -p | grep -Ev "_FTPed|/|.txt")
+					# Grab all items that do not contain _FTPed, a .txt, or are a directory			for Video in $Videos; do
+				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]]; then
+						# Video name format is *_*_*_*.mp4.
+						# We take the first * and see if it is greater than or equal to the motionRecording's startTime.
+					FTPtoPi "$Video" "$WebMotionDir"
+						# If true (video is within the time of the motionRecording), FTP it
+				fi
+			done
+			echo "Motion is no longer in progress."
+			EndTime=$(grep -Po 'endTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
+				# Obtain motionRecording's endTime from JSON
+			echo "endTime = $EndTime."
 			Videos=$(ls -p | grep -Ev "_FTPed|/|.txt")
-				# Grab all items that do not contain _FTPed, a .txt, or are a directory			for Video in $Videos; do
-			if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]]; then
+			# Grab all items that do not contain _FTPed, a .txt, or are a directory
+			for Video in $Videos; do
+				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
 					# Video name format is *_*_*_*.mp4.
 					# We take the first * and see if it is greater than or equal to the motionRecording's startTime.
-				FTPtoPi "$Video" "$WebMotionDir"
-					# If true (video is within the time of the motionRecording), FTP it
-			fi
-		done
-		echo "Motion is no longer in progress."
-		EndTime=$(grep -Po 'endTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
-			# Obtain motionRecording's endTime from JSON
-		echo "endTime = $EndTime."
-		Videos=$(ls -p | grep -Ev "_FTPed|/|.txt")
-		# Grab all items that do not contain _FTPed, a .txt, or are a directory
-		for Video in $Videos; do
-			if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
-				# Video name format is *_*_*_*.mp4.
-				# We take the first * and see if it is greater than or equal to the motionRecording's startTime.
-				# Then take the second * and see if it less than or equal to the motionRecording's endTime.
-				FTPtoPi "$Video" "$WebMotionDir"
-					# If true (video is within the time of the motionRecording), FTP it
-			fi
-		done
-		echo "Sent all motionRecordings."
-	elif [ "$eventType" -e "fullTimeRecording" ]; then
-		# If eventType is a fullTimeRecording, then
-		echo "Live backup JSON = $1/meta/$JSON."
-		StartTime=$(grep -Po 'startTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
-		# Obtain fullTimeRecording's startTime from the JSON
-		echo "startTime = $StartTime."
-		EndTime=$(grep -Po 'endTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
-		# Obtain fullTimeRecording's endTime from JSON
-		echo "endTime = $EndTime."
-		echo "Making fullTimeRecording directory at $WebServer:$WebLiveBackupDir/$Date."
-		$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebLiveBackupDir" "$Date"
-		# Make a directory with the timestamp in the web server's backups directory
-		Videos=$(ls -p | grep -Ev "/|.txt")
-		# Grab all items that are not a .txt or directory
-		for Video in $Videos; do
-			if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
-				# Video name format is *_*_*_*.mp4.
-				# We take the first * and see if it is greater than or equal to the fullTimeRecording's startTime.
-				# Then take the second * and see if it less than or equal to the fullTimeRecording's endTime.
-				FTPtoPi "$Video" "$WebLiveBackupDir"
-					# If true (video is within the time of the fullTimeRecording), FTP it
-			fi
-		done
-		echo "Sent all fullTimeRecordings."
+					# Then take the second * and see if it less than or equal to the motionRecording's endTime.
+					FTPtoPi "$Video" "$WebMotionDir"
+						# If true (video is within the time of the motionRecording), FTP it
+				fi
+			done
+			echo "Sent all motionRecordings."
+		elif [ "$eventType" = "fullTimeRecording" ]; then
+			# If eventType is a fullTimeRecording, then
+			echo "Live backup JSON = $1/meta/$JSON."
+			StartTime=$(grep -Po 'startTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
+			# Obtain fullTimeRecording's startTime from the JSON
+			echo "startTime = $StartTime."
+			EndTime=$(grep -Po 'endTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
+			# Obtain fullTimeRecording's endTime from JSON
+			echo "endTime = $EndTime."
+			echo "Making fullTimeRecording directory at $WebServer:$WebLiveBackupDir/$Date."
+			$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebLiveBackupDir" "$Date"
+			# Make a directory with the timestamp in the web server's backups directory
+			Videos=$(ls -p | grep -Ev "/|.txt")
+			# Grab all items that are not a .txt or directory
+			for Video in $Videos; do
+				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]] && [[ $(echo "$Video" | cut -f2 -d '_') -le "$EndTime" ]]; then
+					# Video name format is *_*_*_*.mp4.
+					# We take the first * and see if it is greater than or equal to the fullTimeRecording's startTime.
+					# Then take the second * and see if it less than or equal to the fullTimeRecording's endTime.
+					FTPtoPi "$Video" "$WebLiveBackupDir"
+						# If true (video is within the time of the fullTimeRecording), FTP it
+				fi
+			done
+			echo "Sent all fullTimeRecordings."
+		fi
+		EventFound="true"
 	fi
-	EventFound="true"
 }
 SendNotification() {
 	echo "$null" >> "$Date.txt"
@@ -173,7 +176,7 @@ while "$T" -e "true"; do
 			# Check for newly created JSON files per each camera and run in the background
 		ctr=$((ctr + 1))
 	done
-	while "$EventFound" -ne "true"; do
+	while "$EventFound" = "false"; do
 		# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
 		# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
 		sleep 1
