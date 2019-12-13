@@ -33,7 +33,7 @@
 # 7. Filter for any related videos, FTP them, and rename them with *_FTPed.mp4. _FTPed is added to prevent files from being FTPed twice.
 # 8. Repeat
 #----------------Static-Variables------------------------
-T="true"
+T=true
 	# Run script forever
 UniFiDir="/srv/unifi-video/videos"
 	# Where the videos are stored at
@@ -49,7 +49,7 @@ ScriptLocation="/root/2019Fall_CNIT581_IOT"
 	# The parent directory of the script
 Date=""
 	# Leave blank; Establish $Date as a global variable
-EventFound="false"
+EventFound=false
 	# Leave blank; Establish $EventFound as a global variable
 #----------------Functions------------------------------
 FTPtoPi() {
@@ -68,7 +68,7 @@ JSONCheck() {
 	JSON=$(inotifywait -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 		# Check for new JSON files and not JPG or PNG. Output the name of the create file. Will wait here till event is found.
 	if [ -n "$JSON" ]; then
-		# Run only if JSON is not $null
+		# Run only if JSON is not null
 		echo "Event detected."
 		cd "$1" || exit
 			# Change directory to camera's UTC date
@@ -89,7 +89,7 @@ JSONCheck() {
 			$ScriptLocation/FTP-Mkdir.sh "$WebServer" "$WebMotionDir" "$Date"
 				# Make a directory with the timestamp in the web server's motion directory
 			echo "Done."
-			while [ "$(grep -Po 'inProgress":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')" = 'true' ]; do
+			while [ "$(grep -Po 'inProgress":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')" = true ]; do
 				# Detect if motion is still in progress according to the JSON
 				Videos=$(ls -p | grep -Ev "_FTPed|/|.txt")
 					# Grab all items that do not contain _FTPed, a .txt, or are a directory			for Video in $Videos; do
@@ -141,11 +141,11 @@ JSONCheck() {
 			done
 			echo "Sent all fullTimeRecordings."
 		fi
-		EventFound="true"
+		EventFound=true
 	fi
 }
 SendNotification() {
-	echo "$null" >> "$Date.txt"
+	echo "" >> "$Date.txt"
 		# Create notification message (ex. 11-20-2020-17:14.txt)
 	echo "Sending motionRecording notification to $WebServer:$WebNotificationsDir/$Date."
 	$ScriptLocation/DVR-Notify-FTP-Pi.sh "$WebServer" "$WebNotificationsDir" "$Date"
@@ -158,7 +158,7 @@ SendNotification() {
 #----------------Main-----------------------------------
 cd "$UniFiDir" || exit
 	# Change script's working directory to the camera directory
-while "$T" -e "true"; do
+while "$T" = true; do
 		# Run forever
 	Year=$(date +%Y -u)
 		# Get UTC year (ex. 2019)
@@ -176,11 +176,11 @@ while "$T" -e "true"; do
 			# Check for newly created JSON files per each camera and run in the background
 		ctr=$((ctr + 1))
 	done
-	while "$EventFound" = "false"; do
+	while "$EventFound" = false; do
 		# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
 		# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
 		sleep 1
 	done
-	EventFound="false"
+	EventFound=false
 		# Reset $EventFound variable
 done

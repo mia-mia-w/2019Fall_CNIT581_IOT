@@ -26,7 +26,7 @@
 # 6. Filter for current motion videos, FTP them, and rename them with *_FTPed.mp4
 # 7. Restart process
 #----------------Static-Variables------------------------
-T="true"
+T=true
 	# Run script forever
 LocalFTPLocationDir="/var/www/html"
 	# Parent directory of all FTP directories
@@ -53,15 +53,15 @@ NotificationCheck() {
 	echo "Sending SMS message..."
 	python3 "$SendSMSLocation"
 	echo "Done."
-	EventFound="true"
+	EventFound=true
 }
 #----------------Main-----------------------------------
 cd "$LocalFTPLocationDir" || exit
 # Change script's working directory to the parent directory of all FTP directories
-while $T -e "true"; do
+while $T = true; do
 	NotificationCheck "$LocalFTPLocationDir/$LocalFTPNotificationDir" &
  #MotionCheck "$LocalFTPLocation/$LocalFTPMotionDir" &
-	while "$EventFound" -ne "true"; do
+	while "$EventFound" = false; do
 		# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
 		# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
 		sleep 1
@@ -74,6 +74,6 @@ while $T -e "true"; do
 			echo "Done."
 		fi
 	done
-	EventFound="false"
+	EventFound=false
 		# Reset $EventFound variable
 done
