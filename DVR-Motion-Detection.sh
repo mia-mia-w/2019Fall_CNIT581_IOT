@@ -91,13 +91,12 @@ JSONCheck() {
 			# Detect if motion is still in progress according to the JSON
 			Videos=$(ls -p | grep -Ev "_FTPed|/|.txt")
 				# Grab all items that do not contain _FTPed, a .txt, or are a directory			for Video in $Videos; do
-				if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]]; then
-						# Video name format is *_*_*_*.mp4.
-						# We take the first * and see if it is greater than or equal to the motionRecording's startTime.
-					FTPtoPi "$Video" "$WebMotionDir"
-						# If true (video is within the time of the motionRecording), FTP it
-				fi
-			done
+			if [[ $(echo "$Video" | cut -f1 -d '_') -ge "$StartTime" ]]; then
+					# Video name format is *_*_*_*.mp4.
+					# We take the first * and see if it is greater than or equal to the motionRecording's startTime.
+				FTPtoPi "$Video" "$WebMotionDir"
+					# If true (video is within the time of the motionRecording), FTP it
+			fi
 		done
 		echo "Motion is no longer in progress."
 		EndTime=$(grep -Po 'endTime":(.*?),' "meta/$JSON" | sed -n 's/.*://p' | sed 's/,$//')
