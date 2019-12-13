@@ -50,9 +50,9 @@ FTPtoPi() {
 MotionCheck() {
 	newjson=$(inotifywait -t 5 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 	if [ -n "$newjson" ]; then
-		eventType=$(grep -Po '{"eventType":"(.*?)"' "meta/$newjson" | sed -n 's/.*://p' | sed 's/,$//')
+		eventType=$(grep -Po "\{\"eventType\"\:\"(.*?)\"" "meta/$newjson" | sed 's/"$//' | sed -n 's/.*"//p')
 		echo "eventType = $eventType"
-		if ["$eventType" -eq 'motionRecording']; then
+		if [ "$eventType" -eq "motionRecording" ]; then
 			echo "Motion file: $1/meta/$newjson."
 				# Checks recursively for 20 seconds if any file has been created
 			Date=$(date +%m-%d-%Y-%H:%M)
@@ -94,7 +94,7 @@ MotionCheck() {
 				fi
 			done
 			echo "Sent all motion videos."
-		elif ["$eventType" -eq 'fullTimeRecording']; then
+		elif [ "$eventType" -eq "fullTimeRecording" ]; then
 			echo "Created live file was named $1/meta/$newjson."
 				# Checks recursively for 20 seconds if any file has been created
 			Date=$(date +%m-%d-%Y-%H:%M)

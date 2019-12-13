@@ -70,6 +70,9 @@ NotificationCheck() {
 		NotificationsDir="$LocalFTPLocation/$LocalFTPNotification"
 		#MotionDir="$LocalFTPLocation/$LocalFTPMotion"
 		NotificationCheck "$NotificationsDir" &
+		find /var/www/html/camera -mtime +3 -exec rm -f {} \;
+		find /var/www/html/LiveBackups -mtime +3 -exec rm -f {} \;
+		find /var/www/html/notifications -mtime +3 -exec rm -f {} \;
 		sleep 61
 	done
 #else
