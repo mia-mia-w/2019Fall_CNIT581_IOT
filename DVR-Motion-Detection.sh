@@ -65,7 +65,7 @@ FTPtoPi() {
 	fi
 }
 JSONCheck() {
-	JSON=$(inotifywait -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
+	JSON=$(inotifywait -t 15 -e create --exclude '\.(jpg|png)' --format '%f' "$1/meta/")
 		# Check for new JSON files and not JPG or PNG. Output the name of the create file. Will wait here till event is found.
 	if [ -n "$JSON" ]; then
 		# Run only if JSON is not null
@@ -76,7 +76,7 @@ JSONCheck() {
 			# Obtain eventType (fullTimeRecording or motionRecording)
 		echo "eventType = $eventType."
 		Date=$(date +%m-%d-%Y-%H:%M)
-				# Get current timezone date in a nice format (ex. 11-20-2020-17:14)
+				# Get current timezone date in a nice format (ex. 11-20-2020-17:14)-
 		if [ "$eventType" = "motionRecording" ]; then
 			# If eventType is a motionRecording, then
 			echo "Motion JSON = $1/meta/$JSON."
@@ -176,11 +176,12 @@ while "$T" = true; do
 			# Check for newly created JSON files per each camera and run in the background
 		ctr=$((ctr + 1))
 	done
-	while "$EventFound" = false; do
-		# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
-		# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
-		sleep 1
-	done
-	EventFound=false
-		# Reset $EventFound variable
+	sleep 15
+	# while "$EventFound" = false; do
+	# 	# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
+	# 	# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
+	# 	sleep 1
+	# done
+	# EventFound=false
+	# 	# Reset $EventFound variable
 done

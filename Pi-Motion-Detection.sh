@@ -45,7 +45,7 @@ Date=""
 EventFound=""
 	# Leave blank; Establish $EventFound as a global variable
 NotificationCheck() {
-	NewNotification=$(inotifywait -e create --format '%f' "$1")
+	NewNotification=$(inotifywait -t 15 -e create --format '%f' "$1")
 		# Check for new txt files. Output the name of the create file. Will wait here till event is found.
 	Date=$(echo "${NewNotification%%.*}")
 		# Get motionRecording's timestamp.
@@ -61,10 +61,10 @@ cd "$LocalFTPLocationDir" || exit
 while $T = true; do
 	NotificationCheck "$LocalFTPLocationDir/$LocalFTPNotificationDir" &
  #MotionCheck "$LocalFTPLocation/$LocalFTPMotionDir" &
-	while "$EventFound" = false; do
+	#while "$EventFound" = false; do
 		# This loop was setup to prevent more than one inotifywait process running at a time. As soon as an event is found, inotifywait will FTP it and mark $EventFound as true.
 		# This loop will see this and stop sleeping as to allow a new inotifywait process to begin.
-		sleep 1
+		sleep 15
 		if [ "$(find "$LocalFTPLocationDir/$LocalFTPBackupsDir" -mtime +3)" -ne "$null" ]; then
 			# Made to not constantly be deleting files. Only when time is older than three days.
 			echo "Deleting any camera archives older than three days."
@@ -73,7 +73,7 @@ while $T = true; do
 			find "$LocalFTPLocationDir/$LocalFTPNotificationDir" -mtime +3 -exec rm -f {} \;
 			echo "Done."
 		fi
-	done
-	EventFound=false
+	# done
+	# EventFound=false
 		# Reset $EventFound variable
 done
